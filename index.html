@@ -14,8 +14,8 @@
         .btn-main { background: #1e293b; color: #ffffff; box-shadow: 0 10px 25px -5px rgba(30, 41, 59, 0.3); transition: all 0.2s; }
         .btn-main:active { transform: scale(0.98); }
         .step-hidden { display: none; }
-        input, textarea { border: 2px solid #f1f5f9 !important; transition: border-color 0.2s; }
-        input:focus { border-color: #00b4d8 !important; outline: none; }
+        input, select, textarea { border: 2px solid #f1f5f9 !important; transition: border-color 0.2s; -webkit-appearance: none; }
+        input:focus, select:focus { border-color: #00b4d8 !important; outline: none; }
     </style>
 </head>
 <body class="pb-24">
@@ -24,7 +24,7 @@
         <div class="mb-4 flex justify-center">
             <img src="https://i.postimg.cc/QCHNNk9K/icon.webp" class="w-20 h-20 rounded-full border-4 border-white/20 shadow-2xl" alt="Logo">
         </div>
-        <h1 class="text-3xl font-black italic uppercase tracking-tighter">SimplyPurified</h1>
+        <h1 class="text-3xl font-black italic uppercase tracking-tighter text-white">SimplyPurified</h1>
         <p class="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Premium Water Delivery</p>
     </header>
 
@@ -34,11 +34,12 @@
                 <div class="flex justify-between items-center mb-8">
                     <div>
                         <h2 class="text-xl font-black text-slate-800 uppercase italic leading-tight">Case of 24<br><span class="text-sm font-bold text-slate-400 not-italic">500ml Bottles</span></h2>
-                        <p id="totalDisplay" class="text-3xl font-black text-blue-600 mt-1">R105.00</p>
+                        <p class="text-[10px] font-bold text-blue-500 uppercase">R105.00 Per Case</p>
+                        <p id="waterTotalStep1" class="text-2xl font-black text-slate-800 mt-1">R105.00</p>
                     </div>
                     <div class="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl">
                         <button onclick="changeQty(-1)" class="w-10 h-10 bg-white rounded-xl shadow-sm font-black text-xl text-blue-600">−</button>
-                        <input type="number" id="qtyInput" value="1" readonly class="w-8 text-center font-black text-xl bg-transparent border-none focus:ring-0">
+                        <input type="number" id="qtyInput" value="1" readonly class="w-8 text-center font-black text-xl bg-transparent border-none">
                         <button onclick="changeQty(1)" class="w-10 h-10 bg-white rounded-xl shadow-sm font-black text-xl text-blue-600">+</button>
                     </div>
                 </div>
@@ -52,10 +53,36 @@
 
         <div id="step2" class="step-hidden">
             <div class="bg-white rounded-[2.5rem] shadow-xl p-8 border border-slate-100 mb-6">
-                <button onclick="toggleSteps(1)" class="text-blue-500 text-[11px] font-black uppercase mb-6"><i class="fas fa-chevron-left mr-1"></i> Edit Order</button>
+                <button onclick="toggleSteps(1)" class="text-blue-500 text-[11px] font-black uppercase mb-6"><i class="fas fa-chevron-left mr-1"></i> Back</button>
+                
                 <div class="space-y-5">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 ml-2">Select Your Area</label>
+                    <select id="deliveryArea" onchange="calculateTotal()" class="w-full p-4 rounded-2xl bg-slate-50 font-bold text-slate-700 border-none">
+                        <option value="0">Select Area...</option>
+                        <option value="35">Alberton (R35)</option>
+                        <option value="50">Johannesburg South (R50)</option>
+                        <option value="75">Bedfordview / Germiston (R75)</option>
+                        <option value="120">Sandton / Randburg (R120)</option>
+                        <option value="0">Self-Collection (Free)</option>
+                    </select>
+
                     <input type="text" id="address" placeholder="Street Address" class="w-full p-4 rounded-2xl bg-slate-50 font-bold">
-                    <textarea id="notes" placeholder="Driver notes (Optional)" class="w-full p-4 rounded-2xl bg-slate-50 font-bold h-24 resize-none"></textarea>
+                    <textarea id="notes" placeholder="Notes (Gate code, etc.)" class="w-full p-4 rounded-2xl bg-slate-50 font-bold h-20 resize-none"></textarea>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-dashed border-slate-200">
+                    <div class="flex justify-between text-sm font-bold text-slate-400 uppercase">
+                        <span>Water Total</span>
+                        <span id="waterDisplay">R105.00</span>
+                    </div>
+                    <div class="flex justify-between text-sm font-bold text-slate-400 uppercase mt-2">
+                        <span>Delivery Fee</span>
+                        <span id="feeDisplay">R0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-4">
+                        <span class="text-lg font-black uppercase italic text-slate-800">Total Due</span>
+                        <span id="grandTotalDisplay" class="text-2xl font-black text-blue-600">R105.00</span>
+                    </div>
                 </div>
             </div>
             
@@ -68,7 +95,7 @@
 
     <script>
         const PRICE_PER_CASE = 105;
-        // REPLACE THIS URL with your actual Yoco Payment Page link
+        // Make sure this link matches your Yoco portal exactly!
         const YOCO_BASE_URL = "https://pay.yoco.com/simply-purified"; 
 
         function changeQty(amt) {
@@ -76,25 +103,61 @@
             let val = parseInt(input.value) + amt;
             if (val < 1) val = 1;
             input.value = val;
-            document.getElementById('totalDisplay').innerText = "R" + (val * PRICE_PER_CASE).toFixed(2);
+            
+            // Update Step 1 display immediately
+            const waterTotal = val * PRICE_PER_CASE;
+            document.getElementById('waterTotalStep1').innerText = "R" + waterTotal.toFixed(2);
+            
+            // Run the main calculation
+            calculateTotal();
         }
 
         function toggleSteps(step) {
             document.getElementById('step1').classList.toggle('step-hidden', step === 2);
             document.getElementById('step2').classList.toggle('step-hidden', step === 1);
+            // Re-run calculation when switching steps to be safe
+            calculateTotal();
             window.scrollTo(0,0);
         }
 
-        function redirectToYoco() {
-            const qty = document.getElementById('qtyInput');
-            const totalAmount = qty.value * PRICE_PER_CASE;
-            const name = encodeURIComponent(document.getElementById('userName').value);
+        function calculateTotal() {
+            const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+            const areaDropdown = document.getElementById('deliveryArea');
+            const deliveryFee = parseFloat(areaDropdown.value) || 0;
             
-            // This builds a link that tells Yoco exactly how much to charge
-            const finalUrl = `${YOCO_BASE_URL}?amount=${totalAmount}&firstName=${name}&reference=Order-${qty.value}Cases`;
+            const waterTotal = qty * PRICE_PER_CASE;
+            const grandTotal = waterTotal + deliveryFee;
+
+            // Update Summary Screen
+            if(document.getElementById('waterDisplay')) {
+                document.getElementById('waterDisplay').innerText = "R" + waterTotal.toFixed(2);
+                document.getElementById('feeDisplay').innerText = "R" + deliveryFee.toFixed(2);
+                document.getElementById('grandTotalDisplay').innerText = "R" + grandTotal.toFixed(2);
+            }
+            
+            return grandTotal;
+        }
+
+        function redirectToYoco() {
+            const finalAmount = calculateTotal();
+            const name = encodeURIComponent(document.getElementById('userName').value);
+            const qty = document.getElementById('qtyInput').value;
+            const areaDropdown = document.getElementById('deliveryArea');
+            const areaName = areaDropdown.options[areaDropdown.selectedIndex].text;
+
+            if (name === "" || areaDropdown.value === "Select Area...") {
+                alert("Please enter your name and select a delivery area.");
+                return;
+            }
+            
+            // Send the final grand total to Yoco
+            const finalUrl = `${YOCO_BASE_URL}?amount=${finalAmount}&firstName=${name}&reference=SimplyPurified-${qty}Cases`;
             
             window.location.href = finalUrl;
         }
+        
+        // Run once on load to set initial values
+        window.onload = calculateTotal;
     </script>
 </body>
 </html>
